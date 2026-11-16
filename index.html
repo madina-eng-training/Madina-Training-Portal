@@ -968,6 +968,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app-check.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBEKDpLh8aDUx8Y_CQSVoGaUPjVGq9oTl4",
@@ -982,6 +983,14 @@
         const appId = 'madina-eng-training-portal-2026';
         const ADMIN_EMAIL = 'madina.eng.training@gmail.com';
         let app, db, auth, userId = null;
+        // تهيئة الفايربيز
+        app = initializeApp(firebaseConfig);
+
+        // 🟢 أضف تفعيل App Check هنا مباشرة:
+        const appCheck = initializeAppCheck(app, {
+            provider: new ReCaptchaEnterpriseProvider('6LcvNiMuAAAAAAwK_0blX1WZoBu-ezQf6-GHoCxW'),
+            isTokenAutoRefreshEnabled: true
+        });
         let appData = {
             isAdminLoggedIn: false,
             logoUrl: "https://placehold.co/70x70/1e3a8a/fbbf24?text=LOGO",
