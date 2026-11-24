@@ -1042,7 +1042,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app-check.js";
 
         const firebaseConfig = {
@@ -1191,12 +1191,14 @@
             try {
                 const studentMap = {};
                 appData.trainings.forEach(t => {
-                    const key = `${t.studentId}_${t.nationalId || 'nonat'}`;
+                    const cleanId = normalizeStudentId(t.studentId);
+                    const cleanNatId = normalizeStudentId(t.nationalId);
+                    const key = `${cleanId}_${cleanNatId || 'nonat'}`;
                     if (!studentMap[key]) {
                         studentMap[key] = {
                             studentName: t.studentName,
-                            studentId: t.studentId,
-                            nationalId: t.nationalId || '',
+                            studentId: cleanId,
+                            nationalId: cleanNatId,
                             dept: t.dept,
                             year: t.year,
                             trainings: []
@@ -1213,10 +1215,31 @@
                     });
                 });
 
+                const activeKeys = new Set(Object.keys(studentMap));
+
                 for (const key in studentMap) {
-                    const sRecord = studentMap[key];
                     const recRef = doc(db, 'studentRecords', key);
-                    await setDoc(recRef, sRecord, { merge: false });
+                    await setDoc(recRef, studentMap[key], { merge: false });
+                }
+
+                const candidateKeys = new Set();
+                (appData.studentsDirectory || []).forEach(s => {
+                    const sid = normalizeStudentId(s.studentId);
+                    const nid = normalizeStudentId(s.nationalId);
+                    if (sid) candidateKeys.add(`${sid}_${nid || 'nonat'}`);
+                    if (sid && nid) candidateKeys.add(`${sid}_${nid}`);
+                });
+                (appData.requests || []).forEach(r => {
+                    const sid = normalizeStudentId(r.studentId);
+                    const nid = normalizeStudentId(r.nationalId);
+                    if (sid) candidateKeys.add(`${sid}_${nid || 'nonat'}`);
+                    if (sid && nid) candidateKeys.add(`${sid}_${nid}`);
+                });
+
+                for (const candidateKey of candidateKeys) {
+                    if (!activeKeys.has(candidateKey)) {
+                        await deleteDoc(doc(db, 'studentRecords', candidateKey)).catch(() => {});
+                    }
                 }
             } catch (e) {
                 console.error("Error syncing secure student records:", e);
@@ -1802,8 +1825,8 @@
 
         window.handleStudentInquiry = async function(e) {
             e.preventDefault();
-            const sId = document.getElementById('inquiry-id').value.trim();
-            const nId = document.getElementById('inquiry-national-id').value.trim();
+            const sId = normalizeStudentId(document.getElementById('inquiry-id').value);
+            const nId = normalizeStudentId(document.getElementById('inquiry-national-id').value);
             const container = document.getElementById('student-result-container');
             container.classList.remove('hidden');
             container.innerHTML = `<div class="bg-white p-8 rounded-2xl shadow-md text-center text-slate-500"><i class="fa-solid fa-spinner fa-spin text-2xl text-gold-500 mb-2"></i><p>جاري البحث في السجلات الآمنة...</p></div>`;
