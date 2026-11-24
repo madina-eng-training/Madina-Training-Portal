@@ -1875,19 +1875,86 @@
                 .replace(/[٠-٩]/g, d => String(arabicDigits.indexOf(d)));
         }
 
+       function normalizeStudentId(val) {
+            const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
+            return String(val || '')
+                .trim()
+                .replace(/[٠-٩]/g, d => String(arabicDigits.indexOf(d)));
+        }
+
+        function normalizeArabicText(str) {
+            return String(str || '')
+                .trim()
+                .toLowerCase()
+                .replace(/[أإآ]/g, 'ا')
+                .replace(/ة/g, 'ه')
+                .replace(/ى/g, 'ي')
+                .replace(/ـ/g, '')
+                .replace(/\s+/g, ' ');
+        }
+
         function matchSelectByTextOrPartial(selectEl, rawValue) {
             if (!selectEl || !rawValue) return;
-            const cleanVal = String(rawValue).trim();
+            const cleanNorm = normalizeArabicText(rawValue);
+            if (!cleanNorm) return;
+
             for (const opt of selectEl.options) {
-                if (opt.value === cleanVal || opt.textContent.trim() === cleanVal) {
+                const optValNorm = normalizeArabicText(opt.value);
+                const optTextNorm = normalizeArabicText(opt.textContent);
+                if (optValNorm === cleanNorm || optTextNorm === cleanNorm) {
                     selectEl.value = opt.value;
+                    selectEl.dispatchEvent(new Event('change'));
                     return;
                 }
             }
+
             for (const opt of selectEl.options) {
-                if (cleanVal.includes(opt.value) || opt.value.includes(cleanVal)) {
+                const optValNorm = normalizeArabicText(opt.value);
+                const optTextNorm = normalizeArabicText(opt.textContent);
+                if (
+                    (optValNorm && cleanNorm.includes(optValNorm)) ||
+                    (optValNorm && optValNorm.includes(cleanNorm)) ||
+                    (optTextNorm && cleanNorm.includes(optTextNorm)) ||
+                    (optTextNorm && optTextNorm.includes(cleanNorm))
+                ) {
                     selectEl.value = opt.value;
+                    selectEl.dispatchEvent(new Event('change'));
                     return;
+                }
+            }
+
+            const yearMap = [
+                { keys: ['اعدادي', 'اعداديه', '0', 'صفر'], target: 'الفرقة الإعدادية' },
+                { keys: ['اولي', 'الاولي', 'الاول', '1', 'واحد', 'مستوي اول', 'المستوي الاول'], target: 'الفرقة الأولى' },
+                { keys: ['ثانيه', 'الثانيه', 'الثاني', '2', 'اثنين', 'اتنين', 'مستوي ثاني', 'المستوي الثاني'], target: 'الفرقة الثانية' },
+                { keys: ['ثالثه', 'الثالثه', 'الثالث', '3', 'تلاته', 'ثلاثه', 'مستوي ثالث', 'المستوي الثالث'], target: 'الفرقة الثالثة' },
+                { keys: ['رابعه', 'الرابعه', 'الرابع', '4', 'اربعه', 'مستوي رابع', 'المستوي الرابع'], target: 'الفرقة الرابعة' }
+            ];
+            for (const item of yearMap) {
+                if (item.keys.some(k => cleanNorm === k || cleanNorm.includes(k))) {
+                    const matchedOpt = Array.from(selectEl.options).find(o => normalizeArabicText(o.value) === normalizeArabicText(item.target));
+                    if (matchedOpt) {
+                        selectEl.value = matchedOpt.value;
+                        selectEl.dispatchEvent(new Event('change'));
+                        return;
+                    }
+                }
+            }
+
+            const deptMap = [
+                { keys: ['اتصالات', 'الكترونيات', 'كهربيه', 'ece', 'comm'], target: 'هندسة الإلكترونيات والإتصالات الكهربية' },
+                { keys: ['مدني', 'مدنيه', 'انشاءات', 'civil'], target: 'الهندسة المدنية' },
+                { keys: ['حاسبات', 'كمبيوتر', 'تحكم', 'برمجه', 'cse', 'computer'], target: 'هندسة الحاسبات والتحكم' },
+                { keys: ['عام', 'عامه'], target: 'عام (جميع الأقسام)' }
+            ];
+            for (const item of deptMap) {
+                if (item.keys.some(k => cleanNorm.includes(k))) {
+                    const matchedOpt = Array.from(selectEl.options).find(o => normalizeArabicText(o.value) === normalizeArabicText(item.target));
+                    if (matchedOpt) {
+                        selectEl.value = matchedOpt.value;
+                        selectEl.dispatchEvent(new Event('change'));
+                        return;
+                    }
                 }
             }
         }
@@ -2173,7 +2240,7 @@
                     </tr>
                 `).join('');
             }
-        }
+        } 
 
       
     </script>
