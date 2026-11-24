@@ -1868,7 +1868,7 @@
             document.getElementById('letter-preview-container').scrollIntoView({ behavior: 'smooth' });
         }
 
-      function normalizeStudentId(val) {
+        function normalizeStudentId(val) {
             const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
             return String(val || '')
                 .trim()
@@ -1917,7 +1917,7 @@
                 showMsg("تعبئة تلقائية", "تم العثور على الطالب في السجلات وجلب بياناته بنجاح.");
             }
         }
-       
+
         function pickColumnValue(row, candidates) {
             const keys = Object.keys(row || {});
             for (const cand of candidates) {
@@ -2009,6 +2009,7 @@
             };
             reader.readAsArrayBuffer(file);
         }
+
         window.handleAddNewCompany = function(e) {
             e.preventDefault();
             const name = document.getElementById('new-comp-name').value;
@@ -2056,29 +2057,29 @@
 
             appData.trainings.push({
                 id: Date.now().toString(),
-                studentName: name, 
-                studentId: sId, 
+                studentName: name,
+                studentId: sId,
                 nationalId: nId,
-                dept: dept, 
-                year: year, 
-                company: comp, 
+                dept: dept,
+                year: year,
+                company: comp,
                 topic: topic,
-                weeksCount: weeksStr, 
-                daysCount: daysCount, 
-                startDate: start, 
-                endDate: end, 
+                weeksCount: weeksStr,
+                daysCount: daysCount,
+                startDate: start,
+                endDate: end,
                 grade: grade
             });
 
             pushToCloud();
             renderAdminTables();
             e.target.reset();
-            
+
             const todayStr = new Date().toISOString().split('T')[0];
             document.getElementById('admin-train-start').value = todayStr;
             document.getElementById('admin-train-end').value = todayStr;
             calculateTrainingDays();
-            
+
             showMsg("تم الحفظ بنجاح", "تم تسجيل التدريب واختيار الأسابيع بنجاح.");
         }
 
@@ -2173,6 +2174,8 @@
                 `).join('');
             }
         }
+
+      
     </script>
 </body>
 </html>
