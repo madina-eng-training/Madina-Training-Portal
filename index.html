@@ -1875,12 +1875,6 @@
                 .replace(/[٠-٩]/g, d => String(arabicDigits.indexOf(d)));
         }
 
-       function normalizeStudentId(val) {
-            const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
-            return String(val || '')
-                .trim()
-                .replace(/[٠-٩]/g, d => String(arabicDigits.indexOf(d)));
-        }
 
       function normalizeArabicText(str) {
             return String(str || '')
