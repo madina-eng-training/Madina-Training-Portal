@@ -672,6 +672,38 @@
                     </div>
                 </div>
             </div>
+            <!-- رفع شيت طلاب المعهد (Excel / CSV) -->
+            <div class="bg-white p-6 rounded-2xl shadow-md border-2 border-gold-500/40 space-y-4">
+                <div class="flex flex-col md:flex-row justify-between md:items-center gap-2">
+                    <div>
+                        <h3 class="text-lg font-bold text-navy-900 flex items-center gap-2">
+                            <i class="fa-solid fa-file-excel text-emerald-600 text-xl"></i> رفع شيت إكسيل لطلاب المعهد (جميع الأقسام)
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-1">
+                            ارفع ملف Excel (.xlsx / .xls) أو CSV يحتوي على بيانات الطلاب لتسهيل التعبئة التلقائية أثناء التسجيل.
+                        </p>
+                    </div>
+                    <span id="excel-students-count-badge" class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-xl border border-emerald-300 shrink-0">
+                        الطلاب المسجلين بالشيت: 0 طالب
+                    </span>
+                </div>
+
+                <div class="bg-slate-50 border-2 border-dashed border-slate-300 p-6 rounded-2xl text-center hover:border-gold-500 transition">
+                    <input type="file" id="students-excel-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
+                    <div class="space-y-3">
+                        <i class="fa-solid fa-cloud-arrow-up text-4xl text-navy-900"></i>
+                        <p class="text-sm font-bold text-slate-700">اضغط لاختيار شيت الإكسيل الخاص بالطلاب</p>
+                        <p class="text-xs text-slate-400">
+                            الأعمدة المطلوبة: <span class="font-bold text-navy-800">كود الطالب، اسم الطالب، الرقم القومي، القسم، المستوى/الفرقة</span>
+                        </p>
+                        <button type="button" onclick="document.getElementById('students-excel-input').click()" class="bg-navy-900 hover:bg-navy-800 text-gold-400 font-bold px-6 py-2.5 rounded-xl text-xs transition shadow inline-flex items-center gap-2">
+                            <i class="fa-solid fa-file-import"></i> اختيار ملف الإكسيل
+                        </button>
+                    </div>
+                </div>
+
+                <div id="excel-upload-status" class="hidden text-xs font-bold p-3 rounded-xl text-center"></div>
+            </div>
 
             <!-- Logo Management -->
             <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-100">
@@ -1196,6 +1228,11 @@
             }
             if(document.getElementById('admin-logo-preview')) {
                 document.getElementById('admin-logo-preview').src = appData.logoUrl;
+            }
+            const excelBadge = document.getElementById('excel-students-count-badge');
+            if (excelBadge) {
+                const count = (appData.studentsDirectory || []).length;
+                excelBadge.innerText = `الطلاب المسجلين بالشيت: ${count} طالب`;
             }
             renderCompanies();
             renderAnnouncements();
@@ -1831,17 +1868,170 @@
             document.getElementById('letter-preview-container').scrollIntoView({ behavior: 'smooth' });
         }
 
-        window.lookupStudentForAdmin = function() {
-            const sId = document.getElementById('admin-stud-id').value.trim();
-            if (!sId) return;
-            const found = appData.trainings.find(t => t.studentId === sId);
-            if (found) {
-                document.getElementById('admin-stud-name').value = found.studentName;
-                document.getElementById('admin-stud-nat-id').value = found.nationalId;
-                showMsg("تعبئة تلقائية", "تم العثور على الطالب في السجلات وجلب بياناته بنجاح.");
+      function normalizeStudentId(val) {
+            const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
+            return String(val || '')
+                .trim()
+                .replace(/[٠-٩]/g, d => String(arabicDigits.indexOf(d)));
+        }
+
+        function matchSelectByTextOrPartial(selectEl, rawValue) {
+            if (!selectEl || !rawValue) return;
+            const cleanVal = String(rawValue).trim();
+            for (const opt of selectEl.options) {
+                if (opt.value === cleanVal || opt.textContent.trim() === cleanVal) {
+                    selectEl.value = opt.value;
+                    return;
+                }
+            }
+            for (const opt of selectEl.options) {
+                if (cleanVal.includes(opt.value) || opt.value.includes(cleanVal)) {
+                    selectEl.value = opt.value;
+                    return;
+                }
             }
         }
 
+        window.lookupStudentForAdmin = function() {
+            const sId = normalizeStudentId(document.getElementById('admin-stud-id').value);
+            if (!sId) return;
+
+            const fromSheet = (appData.studentsDirectory || []).find(s => normalizeStudentId(s.studentId) === sId);
+            if (fromSheet) {
+                document.getElementById('admin-stud-name').value = fromSheet.name || '';
+                document.getElementById('admin-stud-nat-id').value = normalizeStudentId(fromSheet.nationalId);
+                matchSelectByTextOrPartial(document.getElementById('admin-stud-dept'), fromSheet.dept);
+                matchSelectByTextOrPartial(document.getElementById('admin-stud-year'), fromSheet.year);
+                updateAdminCompaniesDropdown();
+                showMsg("تعبئة تلقائية", "تم جلب بيانات الطالب من شيت الإكسيل بنجاح.");
+                return;
+            }
+
+            const found = appData.trainings.find(t => normalizeStudentId(t.studentId) === sId);
+            if (found) {
+                document.getElementById('admin-stud-name').value = found.studentName;
+                document.getElementById('admin-stud-nat-id').value = found.nationalId;
+                matchSelectByTextOrPartial(document.getElementById('admin-stud-dept'), found.dept);
+                matchSelectByTextOrPartial(document.getElementById('admin-stud-year'), found.year);
+                updateAdminCompaniesDropdown();
+                showMsg("تعبئة تلقائية", "تم العثور على الطالب في السجلات وجلب بياناته بنجاح.");
+            }
+        }
+        function normalizeStudentId(val) {
+            const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
+            return String(val || '')
+                .trim()
+                .replace(/[٠-٩]/g, d => String(arabicDigits.indexOf(d)));
+        }
+
+        function matchSelectByTextOrPartial(selectEl, rawValue) {
+            if (!selectEl || !rawValue) return;
+            const cleanVal = String(rawValue).trim();
+            for (const opt of selectEl.options) {
+                if (opt.value === cleanVal || opt.textContent.trim() === cleanVal) {
+                    selectEl.value = opt.value;
+                    return;
+                }
+            }
+            for (const opt of selectEl.options) {
+                if (cleanVal.includes(opt.value) || opt.value.includes(cleanVal)) {
+                    selectEl.value = opt.value;
+                    return;
+                }
+            }
+        }
+
+        function pickColumnValue(row, candidates) {
+            const keys = Object.keys(row || {});
+            for (const cand of candidates) {
+                if (row[cand] !== undefined && row[cand] !== null && String(row[cand]).trim() !== '') {
+                    return String(row[cand]).trim();
+                }
+                const foundKey = keys.find(k => String(k).trim() === cand);
+                if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== '') {
+                    return String(row[foundKey]).trim();
+                }
+            }
+            return '';
+        }
+
+        window.handleExcelUpload = function(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+
+            const statusDiv = document.getElementById('excel-upload-status');
+            statusDiv.classList.remove('hidden');
+            statusDiv.className = "text-xs font-bold p-3 rounded-xl text-center bg-slate-100 text-navy-900";
+            statusDiv.innerHTML = `<i class="fa-solid fa-spinner fa-spin ml-1"></i> جاري قراءة وتحليل ملف الطلاب...`;
+
+            if (typeof XLSX === 'undefined') {
+                statusDiv.className = "text-xs font-bold p-3 rounded-xl text-center bg-red-50 text-red-600";
+                statusDiv.innerText = "مكتبة قراءة الإكسيل غير محملة. تأكد من الاتصال بالإنترنت وأعد تحميل الصفحة.";
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+                    const mapById = new Map();
+                    for (const row of rows) {
+                        const studentId = normalizeStudentId(pickColumnValue(row, [
+                            'كود الطالب', 'الكود الجامعي', 'الكود', 'كود', 'رقم الهوية', 'ID', 'Student ID', 'Code'
+                        ]));
+                        const name = pickColumnValue(row, [
+                            'اسم الطالب', 'الاسم الرباعي', 'الاسم', 'اسم', 'Name', 'Student Name'
+                        ]);
+                        const nationalId = normalizeStudentId(pickColumnValue(row, [
+                            'الرقم القومي', 'رقم القومي', 'الرقم القومى', 'National ID', 'NID'
+                        ]));
+                        const dept = pickColumnValue(row, [
+                            'القسم', 'القسم الهندسي', 'التخصص', 'Department', 'Dept'
+                        ]);
+                        const year = pickColumnValue(row, [
+                            'المستوى', 'الفرقة', 'الفرقة الدراسية', 'المستوى الدراسي', 'Year', 'Level'
+                        ]);
+
+                        if (studentId && name) {
+                            mapById.set(studentId, {
+                                studentId,
+                                name,
+                                nationalId,
+                                dept: dept || 'عام (جميع الأقسام)',
+                                year: year || 'الفرقة الأولى'
+                            });
+                        }
+                    }
+
+                    const imported = Array.from(mapById.values());
+                    if (imported.length === 0) {
+                        statusDiv.className = "text-xs font-bold p-3 rounded-xl text-center bg-red-50 text-red-600";
+                        statusDiv.innerText = "لم يتم العثور على صفوف صالحة تحتوي على (كود الطالب) و (اسم الطالب).";
+                        event.target.value = '';
+                        return;
+                    }
+
+                    appData.studentsDirectory = imported;
+                    pushToCloud();
+                    refreshUIEverything();
+
+                    statusDiv.className = "text-xs font-bold p-3 rounded-xl text-center bg-emerald-50 text-emerald-700 border border-emerald-200";
+                    statusDiv.innerHTML = `<i class="fa-solid fa-circle-check ml-1"></i> تم استيراد وحفظ <strong>${imported.length}</strong> طالب بنجاح.`;
+                } catch (err) {
+                    console.error("Excel upload error:", err);
+                    statusDiv.className = "text-xs font-bold p-3 rounded-xl text-center bg-red-50 text-red-600";
+                    statusDiv.innerText = "تعذر قراءة الملف. تأكد أن الملف بصيغة .xlsx أو .xls أو .csv وسليم.";
+                } finally {
+                    event.target.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
         window.handleAddNewCompany = function(e) {
             e.preventDefault();
             const name = document.getElementById('new-comp-name').value;
