@@ -947,19 +947,41 @@
 
             <!-- Students & Training Records Directory -->
             <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-100 space-y-4">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <h3 class="text-lg font-bold text-navy-900 flex items-center gap-2">
-                        <i class="fa-solid fa-address-book text-gold-500"></i> دليل الطلاب وسجلات التدريبات المسجلة
-                    </h3>
-                    <div class="flex gap-2 flex-wrap w-full md:w-auto">
-                        <select id="filter-table-dept" onchange="renderAdminTables()" class="px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-navy-900 flex items-center gap-2">
+                            <i class="fa-solid fa-address-book text-gold-500"></i> دليل الطلاب وسجلات التدريبات المسجلة
+                        </h3>
+                        <p id="trainings-summary-text" class="text-xs text-slate-500 mt-1">عرض حتى 10 سجلات في كل صفحة</p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                        <!-- بحث بالكود الجامعي -->
+                        <div class="flex items-center gap-1 flex-1 sm:flex-initial">
+                            <input type="text" id="filter-table-code"
+                                onkeydown="if(event.key==='Enter'){event.preventDefault();searchTrainingsByCode();}"
+                                oninput="if(this.value.trim()==='') searchTrainingsByCode();"
+                                placeholder="ابحث بكود الطالب..."
+                                class="w-full sm:w-44 px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-navy-800">
+                            <button type="button" onclick="searchTrainingsByCode()"
+                                class="bg-navy-900 hover:bg-navy-800 text-gold-400 px-3 py-2 rounded-xl text-xs font-bold transition shadow flex items-center gap-1 shrink-0">
+                                <i class="fa-solid fa-magnifying-glass"></i> بحث
+                            </button>
+                            <button type="button" onclick="clearTrainingsCodeSearch()" title="مسح البحث"
+                                class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-2 rounded-xl text-xs font-bold transition shrink-0">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </button>
+                        </div>
+
+                        <select id="filter-table-dept" onchange="onTrainingsFilterChange()" class="px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white">
                             <option value="all">جميع الأقسام الهندسية</option>
                             <option value="عام (جميع الأقسام)">قسم عام (جميع الأقسام)</option>
                             <option value="هندسة الإلكترونيات والإتصالات الكهربية">قسم الإلكترونيات والإتصالات</option>
                             <option value="الهندسة المدنية">قسم الهندسة المدنية</option>
                             <option value="هندسة الحاسبات والتحكم">قسم الحاسبات والتحكم</option>
                         </select>
-                        <select id="filter-table-year" onchange="renderAdminTables()" class="px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white">
+
+                        <select id="filter-table-year" onchange="onTrainingsFilterChange()" class="px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white">
                             <option value="all">جميع الفرق الدراسية</option>
                             <option value="الفرقة الإعدادية">الفرقة الإعدادية</option>
                             <option value="الفرقة الأولى">الفرقة الأولى</option>
@@ -969,6 +991,10 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- كارت تفاصيل الطالب عند البحث بكوده -->
+                <div id="student-code-profile-card" class="hidden bg-slate-50 border-2 border-gold-500/40 rounded-2xl p-4 space-y-3"></div>
+
                 <div class="overflow-x-auto">
                     <table class="w-full text-right border-collapse text-sm">
                         <thead>
@@ -984,6 +1010,22 @@
                         </thead>
                         <tbody id="admin-trainings-tbody" class="divide-y divide-slate-100"></tbody>
                     </table>
+                </div>
+
+                <!-- أزرار التنقل بين الصفحات (10 لكل صفحة) -->
+                <div id="trainings-pagination-bar" class="flex flex-col sm:flex-row justify-between items-center gap-3 pt-3 border-t border-slate-100 text-xs">
+                    <div id="trainings-page-info" class="font-bold text-slate-600">صفحة 1 من 1</div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="btn-prev-trainings-page" onclick="changeTrainingsPage(-1)"
+                            class="px-3.5 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 font-bold text-navy-900 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                            <i class="fa-solid fa-chevron-right ml-1"></i> السابق
+                        </button>
+                        <div id="trainings-page-numbers" class="flex items-center gap-1"></div>
+                        <button type="button" id="btn-next-trainings-page" onclick="changeTrainingsPage(1)"
+                            class="px-3.5 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 font-bold text-navy-900 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                            التالي <i class="fa-solid fa-chevron-left mr-1"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -2191,6 +2233,106 @@
             link.click();
         }
 
+       const TRAININGS_PAGE_SIZE = 10;
+        let currentTrainingsPage = 1;
+        let activeCodeSearchQuery = '';
+
+        window.onTrainingsFilterChange = function() {
+            currentTrainingsPage = 1;
+            renderAdminTables();
+        }
+
+        window.searchTrainingsByCode = function() {
+            const inputEl = document.getElementById('filter-table-code');
+            activeCodeSearchQuery = normalizeStudentId(inputEl?.value || '');
+            currentTrainingsPage = 1;
+            renderAdminTables();
+        }
+
+        window.clearTrainingsCodeSearch = function() {
+            const inputEl = document.getElementById('filter-table-code');
+            if (inputEl) inputEl.value = '';
+            activeCodeSearchQuery = '';
+            currentTrainingsPage = 1;
+            renderAdminTables();
+        }
+
+        window.changeTrainingsPage = function(delta) {
+            currentTrainingsPage += delta;
+            renderAdminTables();
+        }
+
+        window.goToTrainingsPage = function(pageNum) {
+            currentTrainingsPage = pageNum;
+            renderAdminTables();
+        }
+
+        function renderStudentCodeProfileCard(codeQuery, matchingRecords) {
+            const cardEl = document.getElementById('student-code-profile-card');
+            if (!cardEl) return;
+
+            if (!codeQuery) {
+                cardEl.classList.add('hidden');
+                cardEl.innerHTML = '';
+                return;
+            }
+
+            cardEl.classList.remove('hidden');
+
+            if (!matchingRecords || matchingRecords.length === 0) {
+                cardEl.innerHTML = `
+                    <div class="flex items-center justify-between gap-2 text-amber-800 text-xs font-bold">
+                        <span><i class="fa-solid fa-circle-info ml-1"></i> لا توجد سجلات تدريبية مطابقة للكود: <span class="text-navy-900">${codeQuery}</span></span>
+                        <button type="button" onclick="clearTrainingsCodeSearch()" class="underline text-navy-900">إظهار الكل</button>
+                    </div>
+                `;
+                return;
+            }
+
+            const first = matchingRecords[0];
+            const totalDays = matchingRecords.reduce((sum, r) => sum + (parseInt(r.daysCount, 10) || 0), 0);
+            let totalWeeks = 0;
+            matchingRecords.forEach(r => {
+                const parsedWeeks = parseFloat(r.weeksCount);
+                if (!isNaN(parsedWeeks)) totalWeeks += parsedWeeks;
+            });
+
+            const fromDir = (appData.studentsDirectory || []).find(s => normalizeStudentId(s.studentId) === codeQuery);
+            const natIdDisplay = first.nationalId || fromDir?.nationalId || 'غير مسجل';
+
+            cardEl.innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-2 border-b border-gold-500/20">
+                    <div>
+                        <span class="bg-navy-900 text-gold-400 text-[11px] font-bold px-2.5 py-0.5 rounded-full">ملف الطالب الكامل</span>
+                        <h4 class="text-base font-black text-navy-900 mt-1">${first.studentName || fromDir?.name || 'غير معروف'}</h4>
+                        <p class="text-xs text-slate-600 mt-0.5">
+                            الكود: <strong class="text-navy-900">${first.studentId}</strong> |
+                            الرقم القومي: <strong class="text-navy-900">${natIdDisplay}</strong> |
+                            القسم: <strong class="text-navy-900">${first.dept || 'غير محدد'}</strong> |
+                            الفرقة: <strong class="text-navy-900">${first.year || 'غير محدد'}</strong>
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-wrap text-xs font-bold">
+                        <span class="bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-navy-900">التدريبات: ${matchingRecords.length}</span>
+                        <span class="bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-gold-600">إجمالي الأيام: ${totalDays} يوم</span>
+                        <span class="bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-navy-900">إجمالي الأسابيع: ${totalWeeks} أسبوع</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                    ${matchingRecords.map((rec, idx) => `
+                        <div class="bg-white border border-slate-200 rounded-xl p-3 flex flex-col justify-between gap-1">
+                            <div class="flex justify-between items-center font-bold text-navy-900">
+                                <span>${idx + 1}. ${rec.company}</span>
+                                <span class="bg-gold-500/10 text-gold-600 px-2 py-0.5 rounded-full">${rec.grade}</span>
+                            </div>
+                            <div class="text-slate-600">الموضوع: <span class="font-semibold">${rec.topic}</span></div>
+                            <div class="text-slate-500">الفترة: ${rec.startDate || '-'} إلى ${rec.endDate || '-'} (${rec.daysCount} يوم / ${rec.weeksCount || '-'})</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
         window.renderAdminTables = function() {
             updateStats();
             renderCompanies();
@@ -2219,19 +2361,64 @@
 
             const trainTbody = document.getElementById('admin-trainings-tbody');
             if (trainTbody) {
-                const filteredList = appData.trainings.filter(t => (deptFilter === 'all' || t.dept === deptFilter) && (yearFilter === 'all' || t.year === yearFilter));
-                trainTbody.innerHTML = filteredList.length === 0 ? `<tr><td colspan="7" class="p-4 text-center text-slate-400">لا توجد سجلات تدريبية مطابقة للفلاتر.</td></tr>` :
-                filteredList.map(t => `
-                    <tr class="hover:bg-slate-50">
-                        <td class="p-3 font-bold text-navy-900">${t.studentName}</td>
-                        <td class="p-3">${t.studentId}</td>
-                        <td class="p-3 text-xs"><span class="bg-navy-900 text-gold-400 px-2 py-0.5 rounded font-bold">${t.dept || ''}</span><br><span class="text-slate-500">${t.year || ''}</span></td>
-                        <td class="p-3">${t.company} <br><span class="text-xs text-slate-400">${t.topic}</span></td>
-                        <td class="p-3 font-semibold text-navy-900">${t.daysCount} يوم <span class="text-xs text-gold-600 block">(${t.weeksCount || ''})</span></td>
-                        <td class="p-3"><span class="bg-gold-500/10 text-gold-600 px-2.5 py-1 rounded-full text-xs font-bold">${t.grade}</span></td>
-                        <td class="p-3 text-center"><button onclick="deleteTraining('${t.id}')" class="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-200">حذف التدريب</button></td>
-                    </tr>
-                `).join('');
+                const filteredList = appData.trainings.filter(t => {
+                    const matchDept = (deptFilter === 'all' || t.dept === deptFilter);
+                    const matchYear = (yearFilter === 'all' || t.year === yearFilter);
+                    const normalizedRowCode = normalizeStudentId(t.studentId);
+                    const matchCode = (!activeCodeSearchQuery || normalizedRowCode.includes(activeCodeSearchQuery));
+                    return matchDept && matchYear && matchCode;
+                });
+
+                renderStudentCodeProfileCard(activeCodeSearchQuery, filteredList);
+
+                const totalPages = Math.max(1, Math.ceil(filteredList.length / TRAININGS_PAGE_SIZE));
+                if (currentTrainingsPage > totalPages) currentTrainingsPage = totalPages;
+                if (currentTrainingsPage < 1) currentTrainingsPage = 1;
+
+                const startIdx = (currentTrainingsPage - 1) * TRAININGS_PAGE_SIZE;
+                const endIdx = startIdx + TRAININGS_PAGE_SIZE;
+                const pageItems = filteredList.slice(startIdx, endIdx);
+
+                const summaryEl = document.getElementById('trainings-summary-text');
+                if (summaryEl) {
+                    summaryEl.innerText = filteredList.length === 0
+                        ? 'لا توجد سجلات مطابقة (الحد الأقصى 10 سجلات لكل صفحة)'
+                        : `إجمالي السجلات المطابقة: ${filteredList.length} | عرض ${startIdx + 1} – ${Math.min(endIdx, filteredList.length)} (بحد أقصى 10 لكل صفحة)`;
+                }
+
+                trainTbody.innerHTML = pageItems.length === 0
+                    ? `<tr><td colspan="7" class="p-4 text-center text-slate-400">لا توجد سجلات تدريبية مطابقة للفلاتر أو الكود المدخل.</td></tr>`
+                    : pageItems.map(t => `
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 font-bold text-navy-900">${t.studentName}</td>
+                            <td class="p-3 font-bold text-navy-900">${t.studentId}</td>
+                            <td class="p-3 text-xs"><span class="bg-navy-900 text-gold-400 px-2 py-0.5 rounded font-bold">${t.dept || ''}</span><br><span class="text-slate-500">${t.year || ''}</span></td>
+                            <td class="p-3">${t.company} <br><span class="text-xs text-slate-400">${t.topic}</span></td>
+                            <td class="p-3 font-semibold text-navy-900">${t.daysCount} يوم <span class="text-xs text-gold-600 block">(${t.weeksCount || ''})</span></td>
+                            <td class="p-3"><span class="bg-gold-500/10 text-gold-600 px-2.5 py-1 rounded-full text-xs font-bold">${t.grade}</span></td>
+                            <td class="p-3 text-center"><button onclick="deleteTraining('${t.id}')" class="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-200">حذف التدريب</button></td>
+                        </tr>
+                    `).join('');
+
+                const pageInfoEl = document.getElementById('trainings-page-info');
+                const prevBtn = document.getElementById('btn-prev-trainings-page');
+                const nextBtn = document.getElementById('btn-next-trainings-page');
+                const pageNumbersEl = document.getElementById('trainings-page-numbers');
+
+                if (pageInfoEl) pageInfoEl.innerText = `صفحة ${currentTrainingsPage} من ${totalPages}`;
+                if (prevBtn) prevBtn.disabled = currentTrainingsPage <= 1;
+                if (nextBtn) nextBtn.disabled = currentTrainingsPage >= totalPages;
+
+                if (pageNumbersEl) {
+                    let numsHtml = '';
+                    for (let p = 1; p <= totalPages; p++) {
+                        const activeCls = p === currentTrainingsPage
+                            ? 'bg-gold-500 text-navy-900 border-gold-500'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
+                        numsHtml += `<button type="button" onclick="goToTrainingsPage(${p})" class="w-8 h-8 rounded-lg border text-xs font-bold transition ${activeCls}">${p}</button>`;
+                    }
+                    pageNumbersEl.innerHTML = numsHtml;
+                }
             }
         }
       
