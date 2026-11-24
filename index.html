@@ -1917,30 +1917,7 @@
                 showMsg("تعبئة تلقائية", "تم العثور على الطالب في السجلات وجلب بياناته بنجاح.");
             }
         }
-        function normalizeStudentId(val) {
-            const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
-            return String(val || '')
-                .trim()
-                .replace(/[٠-٩]/g, d => String(arabicDigits.indexOf(d)));
-        }
-
-        function matchSelectByTextOrPartial(selectEl, rawValue) {
-            if (!selectEl || !rawValue) return;
-            const cleanVal = String(rawValue).trim();
-            for (const opt of selectEl.options) {
-                if (opt.value === cleanVal || opt.textContent.trim() === cleanVal) {
-                    selectEl.value = opt.value;
-                    return;
-                }
-            }
-            for (const opt of selectEl.options) {
-                if (cleanVal.includes(opt.value) || opt.value.includes(cleanVal)) {
-                    selectEl.value = opt.value;
-                    return;
-                }
-            }
-        }
-
+       
         function pickColumnValue(row, candidates) {
             const keys = Object.keys(row || {});
             for (const cand of candidates) {
