@@ -1002,6 +1002,7 @@
             ],
             trainings: [],
             requests: [],
+            studentsDirectory: [],
             announcements: [
                 { id: "1", title: "بدء التقديم للتدريب الصيفي 2026/2027", desc: "تم فتح باب التقديم لجميع الطلاب بالفرقة الأولى والثانية والثالثة عبر البوابة الإلكترونية للمعهد.", date: "2026-06-01", mediaUrl: "", mediaType: "" }
             ]
@@ -1064,6 +1065,7 @@
                     appData.companies = parsed.companies || appData.companies;
                     appData.trainings = parsed.trainings || appData.trainings;
                     appData.requests = parsed.requests || appData.requests;
+                    appData.studentsDirectory = parsed.studentsDirectory || appData.studentsDirectory;
                     appData.announcements = parsed.announcements || appData.announcements;
                     if (parsed.logoUrl) appData.logoUrl = parsed.logoUrl;
                 } catch(e) {}
@@ -1088,6 +1090,7 @@
                     if (data.announcements) appData.announcements = data.announcements;
                     if (data.trainings) appData.trainings = data.trainings;
                     if (data.requests) appData.requests = data.requests;
+                    if (data.studentsDirectory) appData.studentsDirectory = data.studentsDirectory;
                     if (data.logoUrl) appData.logoUrl = data.logoUrl;
                     saveLocalUnified();
                     refreshUIEverything();
@@ -1101,6 +1104,7 @@
                     if (data.announcements) appData.announcements = data.announcements;
                     if (data.trainings) appData.trainings = data.trainings;
                     if (data.requests) appData.requests = data.requests;
+                    if (data.studentsDirectory) appData.studentsDirectory = data.studentsDirectory;
                     if (data.logoUrl) appData.logoUrl = data.logoUrl;
                     saveLocalUnified();
                     refreshUIEverything();
@@ -1155,6 +1159,7 @@
                     announcements: appData.announcements,
                     trainings: appData.trainings,
                     requests: appData.requests,
+                    studentsDirectory: appData.studentsDirectory,
                     logoUrl: appData.logoUrl,
                     updatedBy: userId,
                     timestamp: new Date().toISOString()
